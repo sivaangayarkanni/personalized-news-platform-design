@@ -48,7 +48,7 @@ graph TB
     Kafka --> NotifSvc
 ```
 
-**API Gateway** routes traffic (see previous API Gateway design):
+**API Gateway** routes traffic:
 - `/api/users/*` → User Service
 - `/api/articles/*` → Article Service
 - `/api/feed/*` → Feed Service
@@ -84,13 +84,6 @@ All external communication via REST through the API Gateway. Internal services c
 - `GET /api/notifications`
 - `POST /api/notifications/subscribe`
 
-**Communication Flow Example (Get Personalized Feed):**
-1. Client → API Gateway (`GET /api/feed`)
-2. Gateway authenticates (JWT) → routes to Feed Service
-3. Feed Service reads user preferences (User Service or cached)
-4. Queries Redis for pre-computed feed or falls back to ranking engine
-5. Returns ranked articles
-
 ## 3. Database Selection
 
 | Data | Database | Reason |
@@ -113,10 +106,6 @@ All external communication via REST through the API Gateway. Internal services c
   - Pre-computed personalized feeds (TTL 2–5 min)
   - Frequently accessed topics
 
-**Cache Invalidation:**
-- On new article publish → publish event to Kafka → invalidate relevant topic caches & update trending
-- Background job refreshes trending every 30–60 seconds
-
 ## 5. Messaging Design
 
 **Apache Kafka** (or RabbitMQ / AWS SNS+SQS) as the backbone.
@@ -128,18 +117,6 @@ All external communication via REST through the API Gateway. Internal services c
 - `user-notifications` – personalized notification events
 - `interaction-events` – views, likes (for ranking & analytics)
 
-### Consumers
-- Feed Service → updates personalized feeds & recommendations
-- Notification Service → sends push/email
-- Trending Service → increments counters in Redis
-- Search Indexer → updates Elasticsearch
-
-**Breaking News Flow:**
-1. Editorial publishes breaking article → Article Service writes to DB + publishes to `breaking-news` topic
-2. Notification Service consumes → fans out to subscribed users (via topic preferences)
-3. Trending Service boosts the article score
-4. Feed Service invalidates caches for affected users
-
 ## 6. Scalability
 
 **Handling sudden traffic spikes (breaking news):**
@@ -147,24 +124,77 @@ All external communication via REST through the API Gateway. Internal services c
 1. **API Gateway** – NGINX with rate limiting + horizontal scaling behind a load balancer.
 2. **Horizontal scaling** of all stateless services (Kubernetes / ECS).
 3. **Caching** – 90%+ of feed and trending reads served from Redis.
-4. **Async processing** – all heavy work (notifications, ranking updates, indexing) via Kafka so the request path stays fast.
+4. **Async processing** – all heavy work via Kafka.
 5. **Database read replicas** + connection pooling.
-6. **Circuit breakers** & graceful degradation (serve cached feed if ranking service is slow).
+6. **Circuit breakers** & graceful degradation.
 7. **Auto-scaling** policies based on CPU, request rate, and Kafka lag.
 8. **CDN** absorbs public article traffic.
 
-**Capacity planning:**
-- Redis Cluster for cache
-- Kafka with multiple partitions
-- PostgreSQL with read replicas + partitioning by date for articles
+## Sample Application Code
 
-## Project Structure
+This repository now includes runnable sample microservices that demonstrate the architecture.
+
+### Project Structure
 ```
-├── README.md                 # This file (full design)
-├── architecture.md           # Detailed diagrams & service interactions
-├── api-examples.md           # Sample request/response
-├── nginx-gateway.conf       # Sample NGINX API Gateway config
-└── express-gateway.js        # Sample Express.js API Gateway
+├── README.md
+├── architecture.md
+├── api-examples.md
+├── nginx-gateway.conf
+├── gateway/express-gateway.js
+├── services/
+│   ├── user-service/index.js
+│   ├── article-service/index.js
+│   ├── feed-service/index.js
+│   ├── trending-service/index.js
+│   └── notification-service/index.js
+├── docker-compose.yml
+├── Dockerfile
+└── package.json
+```
+
+### Run Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Terminal 1 - User Service
+npm run start:user
+
+# Terminal 2 - Article Service
+npm run start:article
+
+# Terminal 3 - Feed Service
+npm run start:feed
+
+# Terminal 4 - Trending Service
+npm run start:trending
+
+# Terminal 5 - Notification Service
+npm run start:notification
+
+# Terminal 6 - API Gateway
+npm run start:gateway
+```
+
+### Test the Gateway
+```bash
+# Trending (additional API)
+curl http://localhost:3000/api/trending?limit=5
+
+# Personalized feed
+curl http://localhost:3000/api/feed
+
+# User preferences
+curl http://localhost:3000/api/users/me
+
+# Articles
+curl http://localhost:3000/api/articles?topic=technology
+```
+
+### Run with Docker Compose
+```bash
+docker-compose up --build
 ```
 
 ---

@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: .
+    command: node gateway/express-gateway.js
+    ports:
+      - "3000:3000"
+    depends_on:
+      - user-service
+      - article-service
+      - feed-service
+      - trending-service
+      - notification-service
+    environment:
+      - NODE_ENV=development
+
+  user-service:
+    build: .
+    command: node services/user-service/index.js
+    ports:
+      - "3001:3001"
+
+  article-service:
+    build: .
+    command: node services/article-service/index.js
+    ports:
+      - "3002:3002"
+
+  feed-service:
+    build: .
+    command: node services/feed-service/index.js
+    ports:
+      - "3003:3003"
+
+  trending-service:
+    build: .
+    command: node services/trending-service/index.js
+    ports:
+      - "3005:3005"
+
+  notification-service:
+    build: .
+    command: node services/notification-service/index.js
+    ports:
+      - "3004:3004"

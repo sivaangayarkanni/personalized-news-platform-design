@@ -1,0 +1,17 @@
+{
+  "name": "personalized-news-platform",
+  "version": "1.0.0",
+  "description": "Sample microservices for personalized news platform",
+  "scripts": {
+    "start:gateway": "node gateway/express-gateway.js",
+    "start:user": "node services/user-service/index.js",
+    "start:article": "node services/article-service/index.js",
+    "start:feed": "node services/feed-service/index.js",
+    "start:trending": "node services/trending-service/index.js",
+    "start:notification": "node services/notification-service/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "http-proxy-middleware": "^3.0.0"
+  }
+}
